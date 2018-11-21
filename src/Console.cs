@@ -1,4 +1,4 @@
-/*
+﻿/*
   C# Console Replacement ... C# example of doing various windowsy things
   Copyright (C) 2006 Art Yerkes
   
@@ -152,9 +152,10 @@ public class Console {
 	    ( WinHandle, -20, 
 	      (win32.GetWindowLong( WinHandle, -20 ) | 128) & ~0x40000 );
 
-	TaskBarTypeLib.TaskbarListClass tlbc = new TaskBarTypeLib.TaskbarListClass();
-	tlbc.HrInit();
-	tlbc.DeleteTab(WinHandle);
+	// TODO: Find a better method for creating TaskBarTypeLib.
+	//TaskBarTypeLib.TaskbarListClass tlbc = new TaskBarTypeLib.TaskbarListClass();
+	//tlbc.HrInit();
+	//tlbc.DeleteTab(WinHandle);
 
 	Settings = new ConsoleSettings();
 
