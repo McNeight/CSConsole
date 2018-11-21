@@ -1,0 +1,38 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+
+  <PropertyGroup>
+    <TargetFrameworks>
+      <!-- .NET Core -->
+      netcoreapp3.0;
+      <!-- .NET Framework -->
+      <!--net45;-->
+      net451;
+      <!--net452;-->
+      <!--net46;net461;net462;-->
+      <!--net47;net471;net472;-->
+    </TargetFrameworks>
+    <DocumentationFile>..\artifacts\bin\$(Configuration)\$(TargetFramework)\CSConsole.xml</DocumentationFile>
+    <ApplicationIcon />
+    <OutputType>WinExe</OutputType>
+    <StartupObject>CSConsole</StartupObject>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="..\stylecop.json" Link="stylecop.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\src\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="StyleCop.Analyzers" Version="1.1.1-beta.61">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>
