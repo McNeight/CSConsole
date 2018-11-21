@@ -1,4 +1,6 @@
 *~
 *.exe
 *.netmodule
+*.dll
 *.pdb
+*.tlb
