@@ -1,65 +1,71 @@
-/*
-  C# Console Replacement ... C# example of doing various windowsy things
-  Copyright (C) 2006 Art Yerkes
-  
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
-  
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-  
-  You should have received a copy of the GNU General Public License along
-  with this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-*/
+﻿// <copyright file="Settings.cs" company="CSConsole Contributors">
+// Copyright © 2006 Art Yerkes
+// Copyright © 2018 Neil McNeight
+// All rights reserved.
+// Licensed under the GNU General Public License v2.0. See the LICENSE file in the project root for full license information.
+// </copyright>
 
 using System;
 using System.IO;
-using System.Xml;
 using System.Xml.Serialization;
 
-[System.Xml.Serialization.XmlInclude(typeof(Console.ConsoleSettings)),
- System.Xml.Serialization.XmlInclude(typeof(ConWindow.WindowSettings))]
-public class Settings {
+/// <summary>
+///
+/// </summary>
+[XmlInclude(typeof(Console.ConsoleSettings))]
+[XmlInclude(typeof(ConWindow.WindowSettings))]
+public class Settings
+{
     public object ConsoleSettings;
     public object WindowSettings;
 
-    public static string settingsFile {
-	get {
-	    return 
-		Environment.GetFolderPath
-		(Environment.SpecialFolder.ApplicationData) + 
-		"\\CSConSettings.xml";
-	}
+    /// <summary>
+    /// Gets path to settings file.
+    /// </summary>
+    public static string SettingsFile => Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\CSConsoleSettings.xml";
+
+    /// <summary>
+    ///
+    /// </summary>
+    /// <returns></returns>
+    public static Settings Load()
+    {
+        // var s = new XmlSerializer(typeof(Settings));
+        // https://stackoverflow.com/questions/1127431/xmlserializer-giving-filenotfoundexception-at-constructor
+        var s = new XmlSerializer(typeof(Settings), typeof(Settings).GetNestedTypes());
+        TextReader r;
+
+        try
+        {
+            r = new StreamReader(SettingsFile);
+
+            return (Settings)s.Deserialize(r);
+        }
+        catch (FileNotFoundException)
+        {
+            return null;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
     }
 
-    public static Settings Load() {
-	XmlSerializer s = new XmlSerializer( typeof( Settings ) );
-	TextReader r;
+    /// <summary>
+    /// Writes out the default settings file.
+    /// </summary>
+    public void WriteDefault()
+    {
+        // var s = new XmlSerializer(typeof(Settings));
+        // https://stackoverflow.com/questions/1127431/xmlserializer-giving-filenotfoundexception-at-constructor
+        var s = new XmlSerializer(typeof(Settings), typeof(Settings).GetNestedTypes());
+        TextWriter w;
 
-	try {
-	    r = new StreamReader(settingsFile);
-
-	    return (Settings)s.Deserialize( r );
-	} catch( FileNotFoundException e ) { 
-	    return null; 
-	} catch( InvalidOperationException e ) {
-	    return null;
-	}
+        if (!File.Exists(SettingsFile))
+        {
+            w = new StreamWriter(SettingsFile);
+            s.Serialize(w, this);
+            w.Close();
+        }
     }
-
-    public void WriteDefault() {
-	XmlSerializer s = new XmlSerializer( typeof( Settings ) );
-	TextWriter w;
-
-	if( !File.Exists(settingsFile) ) {
-	    w = new StreamWriter( settingsFile );
-	    s.Serialize( w, this );
-	    w.Close();
-	}
-    }
-};
+}

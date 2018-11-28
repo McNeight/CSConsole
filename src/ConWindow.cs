@@ -1,318 +1,393 @@
-/*
-  C# Console Replacement ... C# example of doing various windowsy things
-  Copyright (C) 2006 Art Yerkes
-  
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
-  
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-  
-  You should have received a copy of the GNU General Public License along
-  with this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-*/
+﻿// <copyright file="ConWindow.cs" company="CSConsole Contributors">
+// Copyright © 2006 Art Yerkes
+// Copyright © 2018 Neil McNeight
+// All rights reserved.
+// Licensed under the GNU General Public License v2.0. See the LICENSE file in the project root for full license information.
+// </copyright>
 
 using System;
+using System.Collections.Generic;
 using System.Drawing;
-using System.Drawing.Drawing2D;
-using System.Diagnostics;
 using System.Windows.Forms;
 
-public class ConWindow : Form {
-    Console con;
-    Font conFont;
-    Bitmap dblBuffer, wallBuffer;
-    Brush []foreBrushes;
-    Brush []backBrushes;
-    Graphics dblGraphic;
-    Timer repaint;
-    Point textSize;
-    Wallpaper wallpaper;
-    bool started, closed;
-    WindowSettings Settings;
-    RectangleF scrollArea, scrollPos;
+/// <summary>
+///
+/// </summary>
+public class ConWindow : Form
+{
+    private readonly Brush[] foreBrushes;
+    private readonly Brush[] backBrushes;
+    private readonly Console con;
+    private readonly Timer repaint;
+    private readonly Wallpaper wallpaper;
+    private Font conFont;
+    private Bitmap dblBuffer;
+    private Bitmap wallBuffer;
+    private Graphics dblGraphic;
+    private Point textSize;
+    private bool started;
+    private bool closed;
+    private WindowSettings wSettings;
+    private RectangleF scrollArea;
+    private RectangleF scrollPos;
 
-    public class WindowSettings {
-	public string fontName;
-	public int fontSize;
-	public int widthAdj;
-
-	public WindowSettings() {
-	    fontName = "Lucida Console";
-	    fontSize = 12;
-	    widthAdj = -2;
-	}
-    }
-
-    public string fontName {
-	get {
-	    return Settings.fontName;
-	}
-    }
-
-    public int fontSize {
-	get {
-	    return Settings.fontSize;
-	}
-    }
-
-    public int widthAdj {
-	get {
-	    return Settings.widthAdj;
-	}
-    }
-
-    private void sizeText() {
-	Bitmap testBitmap = new Bitmap(1,1);
-	Graphics testGraphics = Graphics.FromImage(testBitmap);
-	conFont = new System.Drawing.Font(fontName, fontSize);
-	textSize = MeasureDisplayStringWidth(testGraphics,"X",conFont);
-	scrollArea = 
-	    new RectangleF
-	    ( (float)(con.viewWidth * textSize.X), (float)0,
-	      (float)textSize.X, (float)(con.viewHeight * textSize.Y) );
-    }
-
-    public object settings {
-	get {
-	    return Settings;
-	} 
-	set {
-	    Settings = (WindowSettings)value;
-	    sizeText();
-	    changeSize();
-	    redraw(null);
-	}
-    }
-
-    private void OnPaint( object Sender, PaintEventArgs e ) {
-	Graphics g = e.Graphics;
-	g.DrawImage( dblBuffer,0,0 );
-	/* Scroll bar */
-	g.DrawImage( wallBuffer, scrollArea, scrollArea, GraphicsUnit.Pixel );
-	g.FillRectangle( backBrushes[con.cursorBack], scrollPos );
-
-    }
-
-    private void changeSize() {
-	/* Make room for a simple scroll bar */
-	ClientSize = new System.Drawing.Size
-	    (textSize.X * (con.viewWidth + 1) + win32.GetSystemMetrics(32), 
-	     textSize.Y * con.viewHeight + win32.GetSystemMetrics(33));
-	dblBuffer = new Bitmap
-	    (textSize.X * con.viewWidth, textSize.Y * con.viewHeight);
-	dblGraphic = Graphics.FromImage(dblBuffer);
-	if( !started ) {
-	    repaint.Start();
-	    Paint += new PaintEventHandler(OnPaint);
-	    started = true;
-	}
-    }
-
-    private void OnMoveSize( object sender, System.EventArgs e ) {
-	changeSize();
-	wallpaper.sizemove
-	    (RectangleToScreen
-	     (new Rectangle
-	      (0,0,(con.viewWidth+1)*textSize.X,con.viewHeight*textSize.Y)));
-	wallBuffer = wallpaper.getBackground();	
-	redraw(null);
-    }
-
-    protected override bool IsInputKey( Keys data ) { return true; }
-
-    private void redraw( List<Point> damage ) {
-	Graphics g = CreateGraphics();
-	Rectangle r;
-	string single = "";
-    
-	if( wallBuffer == null ) return;
-
-	if( damage != null ) 
-	    for( List<Point>.Node head = damage.Head;
-		 head != null;
-		 head = head.Next ) {
-		r = new Rectangle( head.ob.X * textSize.X, head.ob.Y * textSize.Y, textSize.X, textSize.Y );
-		g.Clip.Union( new Region( r ) );
-	    }
-
-	if( damage == null || damage.Length > con.viewWidth / 4 ) {
-	    g.Clip.Union( new Region( scrollArea ) );
-	    scrollPos =
-		new RectangleF
-		( scrollArea.Left,
-		  ((float)con.viewY / con.bufferHeight) * ClientSize.Height,
-		  scrollArea.Width,
-		  ((float)con.viewHeight / con.bufferHeight) * ClientSize.Height );
-	    /* Scroll bar */
-	    g.DrawImage( wallBuffer, scrollArea, scrollArea, GraphicsUnit.Pixel );
-	    g.FillRectangle( backBrushes[con.cursorBack], scrollPos );
-
-	    dblGraphic.DrawImage( wallBuffer, 0,0 );
-	    for( int i = 0; i < con.viewHeight; i++ ) {
-		for( int j = 0; j < con.viewWidth; j++ ) {
-		    int left = j * textSize.X, top = i * textSize.Y;
-		    r = new Rectangle
-			( left,
-			  top,
-			  textSize.X,
-			  textSize.Y );
-
-		    dblGraphic.FillRectangle
-			( backBrushes[con.getBackColor(j,i)], 
-			  r );
-		    string x = single + con.getCharacter(j,i);
-		    dblGraphic.DrawString
-			( x, conFont, foreBrushes[con.getForeColor(j,i)],
-			  r.Left, r.Top );
-		}
-	    }
-	    g.DrawImage( dblBuffer, 0,0 );
-	} else {
-	    for( List<Point>.Node head = damage.Head;
-		 head != null;
-		 head = head.Next ) {
-		int left = head.ob.X * textSize.X, top = head.ob.Y * textSize.Y;
-		r = new Rectangle
-		    ( left,
-		      top,
-		      textSize.X,
-		      textSize.Y );
-		
-		if( !(con.cursorX == head.ob.X && con.cursorY == head.ob.Y) )
-		    dblGraphic.DrawImage( wallBuffer, r, r, GraphicsUnit.Pixel );
-		dblGraphic.FillRectangle
-		    ( backBrushes[con.getBackColor(head.ob.X,head.ob.Y)], 
-		      r );
-		string x = single + con.getCharacter(head.ob.X,head.ob.Y);
-		dblGraphic.DrawString
-		    ( x, conFont, foreBrushes[con.getForeColor(head.ob.X,head.ob.Y)],
-		      r.Left, r.Top );
-		g.DrawImage( dblBuffer, r, r, GraphicsUnit.Pixel );
-	    }
-	}
-
-	g.Dispose();
-    }
-
-    private void OnRefreshTimer( object Sender, EventArgs e ) {
-	bool change = con.refresh();
-	List<Point> damage = con.damageList();
-
-	if( change ) { changeSize(); redraw(null); }
-	else redraw(damage);
-
-	if( Text != con.title ) Text = con.title;
-    }
-
-    private void OnClose( object Sender, FormClosedEventArgs e ) {
-	closed = true;
-	con.destroy();
-    }
-
-    private void OnKeyDown( object sender, KeyEventArgs e ) {
-	doWriteKey( true, e );
-	e.Handled = true;
-    }
-
-    private void OnKeyUp( object sender, KeyEventArgs e ) {
-	doWriteKey( false, e );
-	e.Handled = true;
-    }
-
-    private void OnKeyPressed( object sender, KeyPressEventArgs e ) {
-	con.writeKey( true, 0, 0, e.KeyChar );
-    }
-
-    private void doWriteKey( bool down, KeyEventArgs e ) {
-	con.writeKey
-	    ( down, 
-	      (short)(e.KeyCode & ~(Keys.Alt | Keys.Control | Keys.Shift)),
-	      (((e.KeyCode & Keys.Alt) == Keys.Alt) ? 
-	       win32.LEFT_ALT_PRESSED : 0) |
-	      (((e.KeyCode & Keys.Control) == Keys.Control) ? 
-	       win32.LEFT_CTRL_PRESSED : 0) |
-	      (((e.KeyCode & Keys.Shift) == Keys.Shift) ? 
-	       win32.SHIFT_PRESSED : 0),
-	      '\0' );
-    }
-
-    protected override bool ProcessDialogKey( Keys keydata ) {
-	return true;
-    }
-
-    /* Thanks: http://www.codeproject.com/cs/media/measurestring.asp */
-    public Point MeasureDisplayStringWidth
-	(Graphics graphics, string text, Font font)
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ConWindow"/> class.
+    /// </summary>
+    /// <param name="con"></param>
+    public ConWindow(Console con)
     {
-	System.Drawing.StringFormat format  = new System.Drawing.StringFormat ();
-	System.Drawing.RectangleF   rect    = new System.Drawing.RectangleF
-	    (0, 0, 1000, 1000);
-	System.Drawing.CharacterRange[] ranges  = 
-	    { new System.Drawing.CharacterRange(0, text.Length) };
-	System.Drawing.Region[]         regions = new System.Drawing.Region[1];
-	
-	format.SetMeasurableCharacterRanges (ranges);
-	
-	regions = graphics.MeasureCharacterRanges (text, font, rect, format);
-	rect    = regions[0].GetBounds (graphics);
-	
-	return new Point((int)(rect.Right + (float)widthAdj),(int)(rect.Bottom - rect.Top));
+        int i;
+
+        this.con = con;
+        this.SetStyle(ControlStyles.ResizeRedraw, true);
+
+        this.wSettings = new WindowSettings();
+        this.SizeText();
+
+        this.repaint = new Timer
+        {
+            Interval = 100,
+        };
+        this.repaint.Tick += new EventHandler(this.OnRefreshTimer);
+
+        this.wallpaper = new Wallpaper();
+
+        this.foreBrushes = new Brush[con.NumColors];
+        this.backBrushes = new Brush[con.NumColors];
+
+        for (i = 0; i < this.backBrushes.Length; i++)
+        {
+            this.backBrushes[i] = new SolidBrush(Color.FromArgb(con.GetBackColor(i)));
+            this.foreBrushes[i] = new SolidBrush(Color.FromArgb(con.GetForeColor(i)));
+        }
+
+        this.SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer, true);
+
+        this.FormClosed += new FormClosedEventHandler(this.OnClose);
+        this.KeyDown += new KeyEventHandler(this.OnKeyDown);
+        this.KeyUp += new KeyEventHandler(this.OnKeyUp);
+        this.KeyPress += new KeyPressEventHandler(this.OnKeyPressed);
+        this.ResizeEnd += new EventHandler(this.OnMoveSize);
+        this.MouseDown += new MouseEventHandler(this.OnClick);
+        this.Load += new EventHandler(this.OnMoveSize);
     }
 
-    private void OnClick( object sender, MouseEventArgs e ) {
-	if( e.X > (con.viewWidth * textSize.X) &&
-	    scrollPos != null && 
-	    e.Y < (con.viewHeight * textSize.Y) - scrollPos.Height ) {
-	    con.scrollTo( (float)e.Y / (ClientSize.Height - scrollPos.Height) );
-	}
+    /// <summary>
+    /// Gets the console window font name.
+    /// </summary>
+    public string FontName => this.wSettings.FontName;
+
+    /// <summary>
+    /// Gets the console window font size.
+    /// </summary>
+    public int FontSize => this.wSettings.FontSize;
+
+    /// <summary>
+    /// Gets the console window width adjustment.
+    /// </summary>
+    public int WidthAdj => this.wSettings.WidthAdj;
+
+    /// <summary>
+    /// Gets or sets settings.
+    /// </summary>
+    public object Settings
+    {
+        get => this.wSettings;
+        set
+        {
+            this.wSettings = (WindowSettings)value;
+            this.SizeText();
+            this.ChangeSize();
+            this.Redraw(null);
+        }
     }
 
-    public ConWindow( Console con ) {
-	int i;
-
-	this.con = con;
-	SetStyle(ControlStyles.ResizeRedraw, true);
-
-	Settings = new WindowSettings();
-	sizeText();
-
-	repaint = new Timer();
-	repaint.Interval = 100;
-	repaint.Tick += new EventHandler(OnRefreshTimer);
-
-	wallpaper = new Wallpaper();
-
-	foreBrushes = new Brush[con.NumColors];
-	backBrushes = new Brush[con.NumColors];
-
-	for( i = 0; i < backBrushes.Length; i++ ) {
-	    backBrushes[i] = 
-		new SolidBrush( Color.FromArgb(con.getBackColor(i)) );
-	    foreBrushes[i] =
-		new SolidBrush( Color.FromArgb(con.getForeColor(i)) );
-	}
-	this.SetStyle
-	    ( ControlStyles.UserPaint |
-	      ControlStyles.AllPaintingInWmPaint |
-	      ControlStyles.OptimizedDoubleBuffer, true );
-
-	FormClosed += new FormClosedEventHandler( OnClose );
-	KeyDown += new KeyEventHandler( OnKeyDown );
-	KeyUp   += new KeyEventHandler( OnKeyUp );
-	KeyPress += new KeyPressEventHandler( OnKeyPressed );
-	ResizeEnd += new EventHandler( OnMoveSize );
-	MouseDown += new MouseEventHandler( OnClick );
-	Load += new EventHandler( OnMoveSize );
+    /// <inheritdoc/>
+    protected override bool IsInputKey(Keys data)
+    {
+        return true;
     }
 
-    public void go() {
-	while( !closed ) Application.Run( this );
+    /// <inheritdoc/>
+    protected override bool ProcessDialogKey(Keys keydata)
+    {
+        return true;
     }
-};
-    
+
+    private void SizeText()
+    {
+        var testBitmap = new Bitmap(1, 1);
+        var testGraphics = Graphics.FromImage(testBitmap);
+        this.conFont = new Font(this.FontName, this.FontSize);
+        this.textSize = this.MeasureDisplayStringWidth(testGraphics, "X", this.conFont);
+        this.scrollArea =
+        new RectangleF(
+            this.con.ViewWidth * this.textSize.X,
+            0,
+            this.textSize.X,
+            this.con.ViewHeight * this.textSize.Y);
+    }
+
+    private void OnPaint(object sender, PaintEventArgs e)
+    {
+        var g = e.Graphics;
+        g.DrawImage(this.dblBuffer, 0, 0);
+        /* Scroll bar */
+        g.DrawImage(this.wallBuffer, this.scrollArea, this.scrollArea, GraphicsUnit.Pixel);
+        g.FillRectangle(this.backBrushes[this.con.CursorBack], this.scrollPos);
+    }
+
+    private void ChangeSize()
+    {
+        /* Make room for a simple scroll bar */
+        this.ClientSize = new Size(
+        (this.textSize.X * (this.con.ViewWidth + 1)) + NativeMethods.GetSystemMetrics(32),
+        (this.textSize.Y * this.con.ViewHeight) + NativeMethods.GetSystemMetrics(33));
+        this.dblBuffer = new Bitmap(
+        this.textSize.X * this.con.ViewWidth, this.textSize.Y * this.con.ViewHeight);
+        this.dblGraphic = Graphics.FromImage(this.dblBuffer);
+        if (!this.started)
+        {
+            this.repaint.Start();
+            this.Paint += new PaintEventHandler(this.OnPaint);
+            this.started = true;
+        }
+    }
+
+    private void OnMoveSize(object sender, EventArgs e)
+    {
+        this.ChangeSize();
+        this.wallpaper.SizeMove(
+        this.RectangleToScreen(new Rectangle(
+            0,
+            0,
+            (this.con.ViewWidth + 1) * this.textSize.X,
+            this.con.ViewHeight * this.textSize.Y)));
+        this.wallBuffer = this.wallpaper.GetBackground();
+        this.Redraw(null);
+    }
+
+    private void Redraw(LinkedList<Point> damage)
+    {
+        var g = this.CreateGraphics();
+        Rectangle r;
+        var single = string.Empty;
+
+        if (this.wallBuffer == null)
+        {
+            return;
+        }
+
+        if (damage != null)
+        {
+            for (var head = damage.First; head != null; head = head.Next)
+            {
+                r = new Rectangle(head.Value.X * this.textSize.X, head.Value.Y * this.textSize.Y, this.textSize.X, this.textSize.Y);
+                g.Clip.Union(new Region(r));
+            }
+        }
+
+        if (damage == null || damage.Count > this.con.ViewWidth / 4)
+        {
+            g.Clip.Union(new Region(this.scrollArea));
+            this.scrollPos = new RectangleF(
+                this.scrollArea.Left,
+                (float)this.con.ViewY / this.con.BufferHeight * this.ClientSize.Height,
+                this.scrollArea.Width,
+                (float)this.con.ViewHeight / this.con.BufferHeight * this.ClientSize.Height);
+            /* Scroll bar */
+            g.DrawImage(this.wallBuffer, this.scrollArea, this.scrollArea, GraphicsUnit.Pixel);
+            g.FillRectangle(this.backBrushes[this.con.CursorBack], this.scrollPos);
+
+            this.dblGraphic.DrawImage(this.wallBuffer, 0, 0);
+            for (var i = 0; i < this.con.ViewHeight; i++)
+            {
+                for (var j = 0; j < this.con.ViewWidth; j++)
+                {
+                    int left = j * this.textSize.X, top = i * this.textSize.Y;
+                    r = new Rectangle(
+                        left,
+                        top,
+                        this.textSize.X,
+                        this.textSize.Y);
+
+                    this.dblGraphic.FillRectangle(
+                        this.backBrushes[this.con.GetBackColor(j, i)],
+                        r);
+                    var x = single + this.con.GetCharacter(j, i);
+                    this.dblGraphic.DrawString(
+                        x,
+                        this.conFont,
+                        this.foreBrushes[this.con.GetForeColor(j, i)],
+                        r.Left,
+                        r.Top);
+                }
+            }
+
+            g.DrawImage(this.dblBuffer, 0, 0);
+        }
+        else
+        {
+            for (var head = damage.First; head != null; head = head.Next)
+            {
+                int left = head.Value.X * this.textSize.X, top = head.Value.Y * this.textSize.Y;
+                r = new Rectangle(
+                        left,
+                        top,
+                        this.textSize.X,
+                        this.textSize.Y);
+
+                if (!(this.con.CursorX == head.Value.X && this.con.CursorY == head.Value.Y))
+                {
+                    this.dblGraphic.DrawImage(this.wallBuffer, r, r, GraphicsUnit.Pixel);
+                }
+
+                this.dblGraphic.FillRectangle(
+                    this.backBrushes[this.con.GetBackColor(head.Value.X, head.Value.Y)],
+                    r);
+                var x = single + this.con.GetCharacter(head.Value.X, head.Value.Y);
+                this.dblGraphic.DrawString(
+                    x,
+                    this.conFont,
+                    this.foreBrushes[this.con.GetForeColor(head.Value.X, head.Value.Y)],
+                    r.Left,
+                    r.Top);
+                g.DrawImage(this.dblBuffer, r, r, GraphicsUnit.Pixel);
+            }
+        }
+
+        g.Dispose();
+    }
+
+    private void OnRefreshTimer(object sender, EventArgs e)
+    {
+        var change = this.con.Refresh();
+        var damage = this.con.DamageList();
+
+        if (change)
+        {
+            this.ChangeSize();
+            this.Redraw(null);
+        }
+        else
+        {
+            this.Redraw(damage);
+        }
+
+        if (this.Text != this.con.Title)
+        {
+            this.Text = this.con.Title;
+        }
+    }
+
+    private void OnClose(object sender, FormClosedEventArgs e)
+    {
+        this.closed = true;
+        this.con.Destroy();
+    }
+
+    private void OnKeyDown(object sender, KeyEventArgs e)
+    {
+        this.DoWriteKey(true, e);
+        e.Handled = true;
+    }
+
+    private void OnKeyUp(object sender, KeyEventArgs e)
+    {
+        this.DoWriteKey(false, e);
+        e.Handled = true;
+    }
+
+    private void OnKeyPressed(object sender, KeyPressEventArgs e)
+    {
+        this.con.WriteKey(true, 0, 0, e.KeyChar);
+    }
+
+    private void DoWriteKey(bool down, KeyEventArgs e)
+    {
+        this.con.WriteKey(
+            down,
+            (short)(e.KeyCode & ~(Keys.Alt | Keys.Control | Keys.Shift)),
+            (((e.KeyCode & Keys.Alt) == Keys.Alt) ? NativeMethods.LEFT_ALT_PRESSED : 0) | (((e.KeyCode & Keys.Control) == Keys.Control) ? NativeMethods.LEFT_CTRL_PRESSED : 0) | (((e.KeyCode & Keys.Shift) == Keys.Shift) ? NativeMethods.SHIFT_PRESSED : 0),
+            '\0');
+    }
+
+    /// <summary>
+    ///
+    /// </summary>
+    /// <remarks>
+    /// Thanks: http://www.codeproject.com/cs/media/measurestring.asp
+    /// https://www.codeproject.com/Articles/2118/Bypass-Graphics-MeasureString-limitations
+    /// </remarks>
+    /// <param name="graphics"></param>
+    /// <param name="text"></param>
+    /// <param name="font"></param>
+    /// <returns></returns>
+    public Point MeasureDisplayStringWidth(Graphics graphics, string text, Font font)
+    {
+        var format = new StringFormat();
+        var rect = new RectangleF(0, 0, 1000, 1000);
+        CharacterRange[] ranges = { new CharacterRange(0, text.Length), };
+        var regions = new Region[1];
+
+        format.SetMeasurableCharacterRanges(ranges);
+
+        regions = graphics.MeasureCharacterRanges(text, font, rect, format);
+        rect = regions[0].GetBounds(graphics);
+
+        return new Point((int)(rect.Right + this.WidthAdj), (int)(rect.Bottom - rect.Top));
+    }
+
+    private void OnClick(object sender, MouseEventArgs e)
+    {
+        if (e.X > (this.con.ViewWidth * this.textSize.X) &&
+            this.scrollPos != null &&
+            e.Y < (this.con.ViewHeight * this.textSize.Y) - this.scrollPos.Height)
+        {
+            this.con.ScrollTo(e.Y / (this.ClientSize.Height - this.scrollPos.Height));
+        }
+    }
+
+    /// <summary>
+    ///
+    /// </summary>
+    public void Go()
+    {
+        while (!this.closed)
+        {
+            Application.Run(this);
+        }
+    }
+
+    /// <summary>
+    /// Settings for the console window.
+    /// </summary>
+    public class WindowSettings
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="WindowSettings"/> class.
+        /// </summary>
+        public WindowSettings()
+        {
+            this.FontName = "Lucida Console";
+            this.FontSize = 12;
+            this.WidthAdj = -2;
+        }
+
+        /// <summary>
+        /// Gets or sets console window font name.
+        /// </summary>
+        public string FontName { get; set; }
+
+        /// <summary>
+        /// Gets or sets console window font size.
+        /// </summary>
+        public int FontSize { get; set; }
+
+        /// <summary>
+        /// Gets or sets console window width adjustment.
+        /// </summary>
+        public int WidthAdj { get; set; }
+    }
+}

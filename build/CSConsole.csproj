@@ -18,6 +18,11 @@
     <StartupObject>CSConsole</StartupObject>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <UseWindowsForms>true</UseWindowsForms>
+    <Platforms>AnyCPU</Platforms>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,7 +30,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\src\*.cs" />
+    <Compile Include="..\src\**\*.cs" />
   </ItemGroup>
 
   <ItemGroup>

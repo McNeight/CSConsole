@@ -1,86 +1,110 @@
-/*
-  C# Console Replacement ... C# example of doing various windowsy things
-  Copyright (C) 2006 Art Yerkes
-  
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
-  
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-  
-  You should have received a copy of the GNU General Public License along
-  with this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-*/
+﻿// <copyright file="Wallpaper.cs" company="CSConsole Contributors">
+// Copyright © 2006 Art Yerkes
+// Copyright © 2018 Neil McNeight
+// All rights reserved.
+// Licensed under the GNU General Public License v2.0. See the LICENSE file in the project root for full license information.
+// </copyright>
 
 using System;
-using System.Diagnostics;
 using System.Drawing;
-using System.Data;
+
 using Microsoft.Win32;
 
-class Wallpaper {
-    public enum Style : int { Tiled, Centered, Stretched };
-    public static string WallpaperBmp {
-	get {
-	    try {
-		RegistryKey key = Registry.CurrentUser.OpenSubKey("Control Panel\\Desktop", true);
-		return (string)key.GetValue(@"Wallpaper");
-	    } catch( Exception e ) { return ""; }
-	}
+internal class Wallpaper
+{
+    private Rectangle clientArea;
+
+    public Wallpaper()
+    {
     }
 
-    public static Style WallpaperStyle {
-	get {
-	    RegistryKey key = Registry.CurrentUser.OpenSubKey("Control Panel\\Desktop", true);
-	    try {
-		return key.GetValue(@"TileWallpaper").Equals("1") ?
-		    Style.Tiled : 
-		    key.GetValue(@"WallpaperStyle").Equals("1") ?
-		    Style.Centered : Style.Stretched;
-	    } catch( Exception e ) { return Style.Stretched; }
-	}
+    public enum Style : int
+    {
+        Tiled,
+        Centered,
+        Stretched,
     }
 
-    public static Point ScreenSize {
-	get {
-	    return new Point
-		(win32.GetSystemMetrics(0), win32.GetSystemMetrics(1));
-	}
+    public static string WallpaperBmp
+    {
+        get
+        {
+            try
+            {
+                var key = Registry.CurrentUser.OpenSubKey("Control Panel\\Desktop", true);
+                return (string)key.GetValue(@"Wallpaper");
+            }
+            catch (Exception)
+            {
+                return string.Empty;
+            }
+        }
     }
 
-    public Wallpaper() { }
-    public void sizemove( Rectangle r ) { this.clientArea = r; }
-
-    public Bitmap getBackground() {
-	if( WallpaperBmp == "" ) return new Bitmap(1,1);
-	Bitmap wpBitmap = new Bitmap( WallpaperBmp );
-	Bitmap outBitmap = new Bitmap(clientArea.Width, clientArea.Height);
-	Style style = WallpaperStyle;
-	Graphics g = Graphics.FromImage(outBitmap);
-	Point screenSize = ScreenSize;
-
-	if( style == Style.Stretched ) {
-	    g.DrawImage
-		(wpBitmap, 
-		 new Rectangle
-		 (-clientArea.Left,-clientArea.Top,screenSize.X,screenSize.Y));
-	} else if( style == Style.Tiled ) {
-	    /* Not supported yet */
-	} else if( style == Style.Centered ) {
-	    g.DrawImage
-		(wpBitmap,
-		 new Point
-		 (-clientArea.Left+screenSize.X/2-clientArea.Width/2,
-		  -clientArea.Top +screenSize.Y/2-clientArea.Height/2));
-	}
-
-	return outBitmap;
+    public static Style WallpaperStyle
+    {
+        get
+        {
+            var key = Registry.CurrentUser.OpenSubKey("Control Panel\\Desktop", true);
+            try
+            {
+                return key.GetValue(@"TileWallpaper").Equals("1") ?
+                    Style.Tiled :
+                    key.GetValue(@"WallpaperStyle").Equals("1") ?
+                    Style.Centered : Style.Stretched;
+            }
+            catch (Exception)
+            {
+                return Style.Stretched;
+            }
+        }
     }
 
-    Rectangle clientArea;
-};
+    public static Point ScreenSize => new Point(
+        NativeMethods.GetSystemMetrics(0),
+        NativeMethods.GetSystemMetrics(1));
+
+    public void SizeMove(Rectangle r)
+    {
+        this.clientArea = r;
+    }
+
+    public Bitmap GetBackground()
+    {
+        if (WallpaperBmp == string.Empty)
+        {
+            return new Bitmap(1, 1);
+        }
+
+        var wpBitmap = new Bitmap(WallpaperBmp);
+        var outBitmap = new Bitmap(this.clientArea.Width, this.clientArea.Height);
+        var style = WallpaperStyle;
+        var g = Graphics.FromImage(outBitmap);
+        var screenSize = ScreenSize;
+
+        if (style == Style.Stretched)
+        {
+            g.DrawImage(
+                wpBitmap,
+                new Rectangle(
+                    -this.clientArea.Left,
+                    -this.clientArea.Top,
+                    screenSize.X,
+                    screenSize.Y));
+        }
+        else if (style == Style.Tiled)
+        {
+            /* Not supported yet */
+        }
+        else if (style == Style.Centered)
+        {
+            g.DrawImage(
+                wpBitmap,
+                new Point(
+                    -this.clientArea.Left + (screenSize.X / 2) - (this.clientArea.Width / 2),
+                    -this.clientArea.Top + (screenSize.Y / 2) - (this.clientArea.Height / 2)));
+        }
+
+        return outBitmap;
+    }
+}
